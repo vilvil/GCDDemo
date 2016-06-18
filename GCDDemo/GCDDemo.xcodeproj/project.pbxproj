@@ -207,6 +207,8 @@
 				TargetAttributes = {
 					443DE5431D0E5F08003D82CB = {
 						CreatedOnToolsVersion = 7.3.1;
+						DevelopmentTeam = 9QH568S6BV;
+						DevelopmentTeamName = "chen wei (Personal Team)";
 					};
 					443DE55C1D0E5F08003D82CB = {
 						CreatedOnToolsVersion = 7.3.1;
@@ -417,6 +419,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = GCDDemo/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = vivi.GCDDemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -429,6 +432,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = GCDDemo/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = vivi.GCDDemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";

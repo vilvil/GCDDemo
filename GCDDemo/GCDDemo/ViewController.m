@@ -17,20 +17,205 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
+    [self gcdApply];
+    
+}
+
+
+
+
+#pragma - apply
+
+- (void)gcdApply
+{
+    // 1.dispatch_apply 相当于dispatch_sync 和 dispatch_group 的结合
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    
+//    dispatch_apply(10, queue, ^(size_t index) {
+//       
+//       NSLog(@"%zu",index);
+//    });
+//    
+//    NSLog(@"done");
     
     
-    [self gcdAfter];
+    // 2.利用dispatch_apply处理数组
+//    NSArray *array = @[@"he",@"jo",@"le",@"ke",@"mo"];
+//    dispatch_apply(array.count, queue, ^(size_t index) {
+//        
+//        NSLog(@"%zu: %@,%@",index,array[index],[NSThread currentThread]);
+//    });
     
     
+    // 3.
+    NSArray *array = @[@"he",@"jo",@"le",@"ke",@"mo"];
+    dispatch_async(queue, ^{
+        NSLog(@"线程:%@",[NSThread currentThread]);
+        // 因为dispatch_apply会阻塞当前调用的线程，所以放到其他线程去执行耗时间操作 ,并行处理数组
+        dispatch_apply(array.count, queue, ^(size_t index) {
+            
+            NSLog(@"%zu: %@,%@",index,array[index],[NSThread currentThread]);
+            
+        });
+        
+        // 执行完上面处理后再回到主线程处理UI
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"处理UI");
+        });
+        
+    });
+}
+
+#pragma - gcd sync
+- (void)gcdSync
+{
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     
+    dispatch_async(queue, ^{
+        NSLog(@"1:%@",[NSThread currentThread]);
+    });
+    dispatch_async(queue, ^{
+        NSLog(@"2:%@",[NSThread currentThread]);
+    });
+    
+    
+    dispatch_sync(queue, ^{
+        NSLog(@"%@",[NSThread currentThread]);
+        sleep(3);
+    });
+    dispatch_async(queue, ^{
+        NSLog(@"3:%@",[NSThread currentThread]);
+    });
+    
+    NSLog(@"代码执行here");
+}
+
+- (void)gcdSyncLock
+{
+    // 死锁例子
+//    dispatch_queue_t mainQueue = dispatch_get_main_queue();
+//    
+//    dispatch_sync(mainQueue, ^{
+//         NSLog(@"执行:%@",[NSThread currentThread]);
+//    });
+
+    dispatch_queue_t mainQueue = dispatch_get_main_queue();
+    dispatch_async(mainQueue, ^{
+        NSLog(@"执行:%@",[NSThread currentThread]);
+        dispatch_sync(mainQueue, ^{
+            NSLog(@"执行:%@",[NSThread currentThread]);
+        });
+    });
+
+//    dispatch_queue_t queue = dispatch_queue_create("com.gcd.lock", NULL);
+//    dispatch_async(queue, ^{
+//        dispatch_sync(queue, ^{
+//            NSLog(@"执行:%@",[NSThread currentThread]);
+//        });
+//    });
+
+    // 综合上面例子，死锁的原因是，在串行的队列里调用同步方法，同步方法指定在该串行队列
+}
+
+#pragma - gcd barrier_async
+- (void)gcdBarrierAsync
+{
+    // 数据库访问的时候可以同时并行读取处理，但是当要加入写入处理的时候就不能并行执行了，这会造成数据错误，多线程的数据竞争问题
+    dispatch_queue_t queue = dispatch_queue_create("com.example.gcd.barrier", DISPATCH_QUEUE_CONCURRENT);
+    
+    dispatch_async(queue, ^{
+        NSLog(@"读取操作1-%@",[NSThread currentThread]);
+    });
+    dispatch_async(queue, ^{
+        NSLog(@"读取操作2-%@",[NSThread currentThread]);
+    });
+    dispatch_async(queue, ^{
+        NSLog(@"读取操作3-%@",[NSThread currentThread]);
+    });
+    
+    // 此时如果执行这种写入 那么可能出现异常，或者读取的数据不符合期待的
+//    dispatch_async(queue, ^{
+//        NSLog(@"写入操作");
+//    });
+
+    // 用这种方法实现写入，那么就会等上面的并行读取操作完成后再执行写入，等写入完成后再并行执行下面的读取
+    dispatch_barrier_async(queue, ^{
+        sleep(10);
+        NSLog(@"写入操作-%@",[NSThread currentThread]);
+    });
+    
+    dispatch_async(queue, ^{
+        NSLog(@"读取操作4-%@",[NSThread currentThread]);
+    });
+    dispatch_async(queue, ^{
+        NSLog(@"读取操作5-%@",[NSThread currentThread]);
+    });
+    dispatch_async(queue, ^{
+        NSLog(@"读取操作6-%@",[NSThread currentThread]);
+    });
     
     
 }
 
+
 #pragma - gcd group 
 - (void)gcdGroup
 {
+    dispatch_queue_t globalQueue =  dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    dispatch_group_t group = dispatch_group_create();
     
+    dispatch_group_async(group, globalQueue, ^{
+        NSLog(@"任务一%@",[NSThread currentThread]);
+        
+    });
+    dispatch_group_async(group, globalQueue, ^{
+        NSLog(@"任务二%@",[NSThread currentThread]);
+        
+    });
+    dispatch_group_async(group, globalQueue, ^{
+        NSLog(@"任务三%@",[NSThread currentThread]);
+        
+    });
+    
+    dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+        NSLog(@"所有任务完成");
+    });
+    
+//    dispatch_release(group);mrc
+}
+
+- (void)gcdGroupWait
+{
+    dispatch_queue_t globalQueue =  dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    dispatch_group_t group = dispatch_group_create();
+    
+    dispatch_group_async(group, globalQueue, ^{
+        NSLog(@"任务一%@",[NSThread currentThread]);
+        
+    });
+    dispatch_group_async(group, globalQueue, ^{
+        NSLog(@"任务二%@",[NSThread currentThread]);
+        
+    });
+    dispatch_group_async(group, globalQueue, ^{
+        sleep(10);
+        NSLog(@"任务三%@",[NSThread currentThread]);
+        
+    });
+
+
+    NSLog(@"代码执行here");
+    // 等待超时时间的，DISPATCH_TIME_FOREVER永远等待组里的代码运行完成，如果组里的代码没完成，下面的代码是不走的
+    long result =  dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+    NSLog(@"代码执行here");
+
+    if (result==0) {
+        NSLog(@"执行完成");
+    }else{
+        NSLog(@"执行中");
+    }
+    
+    NSLog(@"代码执行here");
 }
 
 
