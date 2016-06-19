@@ -8,6 +8,7 @@
 
 #import "ViewController.h"
 
+
 @interface ViewController ()
 
 @end
@@ -17,12 +18,212 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    [self gcdApply];
+    [self gcdTimer];
     
 }
 
 
+#pragma - gcd source timer
+- (void)gcdSource
+{
+    NSLog(@"开始");
+    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());\
+    // 5秒后执行，1秒延迟，不重复
+    dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 5ull * NSEC_PER_SEC), DISPATCH_TIME_FOREVER, 1ull * NSEC_PER_SEC);
+    dispatch_source_set_event_handler(timer, ^{
+        
+        NSLog(@"执行");
+        
+        dispatch_source_cancel(timer);
+        
+    });
+    dispatch_source_set_cancel_handler(timer, ^{
+        NSLog(@"取消回调");
+//        dispatch_release(timer);
+    });
+    dispatch_resume(timer);
+    
+    
+    
+}
 
+- (void)gcdTimer
+{
+
+
+    NSLog(@"开始");
+    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(0, 0));
+    dispatch_source_set_timer(timer, DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC, 0 * NSEC_PER_SEC);
+    dispatch_source_set_event_handler(timer, ^{
+        NSLog(@"hello");
+        
+        
+            // 不写这句dispatch_source_cancel，dispatch_source_set_event_handler不走回调
+           if (0) dispatch_source_cancel(timer);
+        
+        
+    });
+    dispatch_resume(timer);
+ 
+}
+
+
+#pragma - 基准测试
+- (void)gcdBenchMark
+{
+//    测量给定的代码块执行的平均的纳秒数 不要把它放到发布代码中，事实上，这是无意义的，它是私有API
+    size_t const objectCount = 1000;
+    uint64_t n = dispatch_benchmark(10000, ^{
+        @autoreleasepool {
+            id obj = @42;
+            NSMutableArray *array = [NSMutableArray array];
+            for (size_t i = 0; i < objectCount; ++i) {
+                [array addObject:obj];
+            }
+        }
+    });
+    NSLog(@"-[NSMutableArray addObject:] : %llu ns", n);
+}
+
+
+#pragma - dispatch I/O 
+- (void)gcdIO
+{
+    // 提高文件读取速度方案
+ 
+//    dispatch_io_read 参考libc-763.11 gen/asl.c apple开源代码
+    
+    
+}
+
+#pragma - gcd读写文件
+- (void)gcdReadAndWrite
+{
+    NSString *path = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *pathData =  [path stringByAppendingString:@"/data.txt"];
+    NSLog(@"%@",path);
+    
+    //GCD读写文件
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    
+    int intbuffer[] = { 1, 2, 3, 4 };
+    char charbuffer[]={"fdafdsafsdfasdfa"};
+    dispatch_data_t data = dispatch_data_create(charbuffer, 4 * sizeof(int), queue, NULL);
+    
+    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+    // Write
+    dispatch_fd_t fd = open(pathData.UTF8String, O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+    
+    printf("FD: %d\n", fd);
+    
+    dispatch_write(fd, data, queue,^(dispatch_data_t d, int e) {
+        printf("Written %zu bytes!\n", dispatch_data_get_size(data) - (d ? dispatch_data_get_size(d) : 0));
+        printf("\tError: %d\n", e);
+        dispatch_semaphore_signal(sem);
+    });
+    
+    dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER);
+    
+    close(fd);
+    
+    // Read
+    fd = open(pathData.UTF8String, O_RDWR);
+    
+    dispatch_read(fd, 4 * sizeof(int), queue, ^(dispatch_data_t d, int e) {
+        printf("Read %zu bytes!\n", dispatch_data_get_size(d));
+        const void *buffer = NULL;
+        size_t size = dispatch_data_get_size(d);
+        dispatch_data_t tmpData = dispatch_data_create_map(data, &buffer, &size);
+        NSData *nsdata = [[NSData alloc] initWithBytes:buffer length:size];
+        NSString *s=[[NSString alloc] initWithData:nsdata encoding:NSUTF8StringEncoding];
+        NSLog(@"buffer %@",s);
+        printf("\tError: %d\n", e);
+        dispatch_semaphore_signal(sem);
+    });
+    
+    dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER);
+    close(fd);
+    
+    // Exit confirmation
+    getchar();
+}
+
+
+#pragma - once
+- (void)gcdOnce
+{
+    // 多线程安全 ，应用程序执行中只执行一次，常常用于创建单例
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        
+    });
+}
+
+#pragma - semaphore
+- (void)gcdSemaphore
+{
+//    信号量
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    
+    dispatch_semaphore_t semaphore  = dispatch_semaphore_create(1);
+    // 多线程对array进行操作可能会造成错误
+    NSMutableArray *array = [NSMutableArray array];
+    
+    for(int i=0;i<10000;i++){
+        dispatch_async(queue, ^{
+  
+            // 当前线程等待semaphore计数器>=1 ，如果满足执行下面代码，超时时间为永远等待 ，当计数器>=1 计数器-1
+            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+            
+            // 能执行到这里说明计数器为0，计数器为0 那么其他线程就无法执行下面的代码，即对数组做了保护
+            NSLog(@"i=%d:%@",i,[NSThread currentThread]);
+            
+            [array addObject:@(i)];
+            
+            NSLog(@"hello%d",i);
+            // 执行完对数组的操作 ，计数器加1，让其他线程可以操作数组
+            dispatch_semaphore_signal(semaphore);
+        });
+        
+    }
+    
+    //以上线程操作就相当于加了锁，对资源的保护
+    
+}
+
+
+#pragma - suspend and resume
+- (void)gcdSuspendAndResume
+{
+    // dispatch_suspend不能暂停全局队列,主队列
+//    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+//    dispatch_queue_t queue = dispatch_get_main_queue();
+    
+    
+    dispatch_queue_t queue = dispatch_queue_create("com.demo.suspend", DISPATCH_QUEUE_CONCURRENT);
+    
+    dispatch_async(queue, ^{
+        NSLog(@"1:%@",[NSThread currentThread]);
+    });
+    dispatch_async(queue, ^{
+        NSLog(@"2:%@",[NSThread currentThread]);
+    });
+    
+    // 一个dispatch_suspend配对一个dispatch_resume, you must balance each dispatch_suspend call with a matching dispatch_resume call.
+    dispatch_suspend(queue);
+    
+    dispatch_async(queue, ^{
+        NSLog(@"3:%@",[NSThread currentThread]);
+    });
+    dispatch_async(queue, ^{
+        NSLog(@"4:%@",[NSThread currentThread]);
+    });
+    
+    
+    sleep(5);
+    // 如果不配对dispatch_resume，会出现bread point
+    dispatch_resume(queue);
+}
 
 #pragma - apply
 

@@ -51,6 +51,7 @@
 		443DE5681D0E5F08003D82CB /* GCDDemoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GCDDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		443DE56C1D0E5F08003D82CB /* GCDDemoUITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDDemoUITests.m; sourceTree = "<group>"; };
 		443DE56E1D0E5F08003D82CB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		446FCF811D16852C00C7D349 /* asl.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = asl.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -109,6 +110,7 @@
 				443DE5531D0E5F08003D82CB /* Assets.xcassets */,
 				443DE5551D0E5F08003D82CB /* LaunchScreen.storyboard */,
 				443DE5581D0E5F08003D82CB /* Info.plist */,
+				446FCF811D16852C00C7D349 /* asl.c */,
 				443DE5471D0E5F08003D82CB /* Supporting Files */,
 			);
 			path = GCDDemo;
